@@ -2,6 +2,15 @@
 
 > Status: **Draft v0.1**. Order of work, what each step produces, and how we know it is done.
 
+## Progress
+
+| Step | State | Output |
+|------|-------|--------|
+| A1 Data model | ✅ drafted, tested on PostgreSQL 18.6 (awaiting review) | [data-model.md](design/data-model.md), [schema.dbml](design/schema.dbml), [migrations](../apps/core/db/migrations/), [scenarios.sql](../apps/core/db/tests/scenarios.sql) |
+| A2 Permissions | ✅ drafted (awaiting review) | [permissions.md](design/permissions.md) |
+| A3 API contract | ✅ drafted: 65 operations, all mapped to permission keys (awaiting review) | [openapi.yaml](api/openapi.yaml), view with Scalar via [index.html](api/index.html) |
+| A4 UI design | ⏳ next | |
+
 ## How we build
 
 1. **Design the foundation up front, design everything else just in time.** The data model, permissions and API shape touch every feature, so we design them first. The plugin protocol, workflow engine and marketplace are designed only when we reach them, because we will know much more by then.
