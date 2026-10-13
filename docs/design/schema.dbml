@@ -1,0 +1,416 @@
+// Netopology database schema (design view)
+// Visualize: paste into https://dbdiagram.io, or publish with dbdocs (https://dbdocs.io).
+// Source of truth for the real database is apps/core/db/migrations/*.sql.
+// This file must be kept in sync with the migrations (later: regenerate it with `db2dbml`).
+//
+// Conventions: snake_case, plural tables, uuid v7 ids, timestamptz, text + CHECK instead of PG enums.
+// Every workspace-owned table carries workspace_id and uses composite foreign keys
+// (workspace_id, x_id) so rows can never reference another workspace's rows.
+
+Project netopology {
+  database_type: 'PostgreSQL'
+  Note: 'Netopology v1 schema (phase A1). PostgreSQL 18.'
+}
+
+// ───────────────────────── Accounts (instance level) ─────────────────────────
+
+Table users {
+  id uuid [pk, default: `uuidv7()`]
+  username text [not null, note: 'login name, unique case-insensitively']
+  email text [null, note: 'optional; self-hosters may not run mail']
+  display_name text [not null, default: '']
+  password_hash text [null, note: 'argon2id PHC string; null = signs in only with Google/Discord']
+  instance_role text [not null, default: 'member', note: 'owner | admin | member. Server-level: owner/admin create accounts and workspaces; no workspace content access by itself']
+  status text [not null, default: 'active', note: 'active | disabled']
+  last_login_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (`lower(username)`) [unique, name: 'users_username_key']
+    (`lower(email)`) [unique, name: 'users_email_key', note: 'where email is not null']
+    (`(true)`) [unique, name: 'users_single_instance_owner', note: 'where instance_role = owner: exactly one server owner']
+  }
+}
+
+Table user_identities {
+  id uuid [pk, default: `uuidv7()`]
+  user_id uuid [not null, ref: > users.id]
+  provider text [not null, note: 'google | discord']
+  subject text [not null, note: 'provider user id (Google sub, Discord id)']
+  email text [null, note: 'as verified by the provider']
+  display_name text [null]
+  created_at timestamptz [not null, default: `now()`]
+  last_used_at timestamptz [null]
+
+  indexes {
+    (provider, subject) [unique]
+    (user_id, provider) [unique]
+  }
+  Note: 'Google/Discord sign-in. Links only to existing accounts: no self-signup.'
+}
+
+Table sessions {
+  id uuid [pk, default: `uuidv7()`]
+  user_id uuid [not null, ref: > users.id]
+  token_hash bytea [not null, unique, note: 'SHA-256 of the cookie token; raw token never stored']
+  ip inet
+  user_agent text
+  created_at timestamptz [not null, default: `now()`]
+  last_seen_at timestamptz [not null, default: `now()`]
+  expires_at timestamptz [not null]
+
+  indexes {
+    user_id
+    expires_at
+  }
+}
+
+Table instance_settings {
+  key text [pk]
+  value jsonb [not null]
+  updated_by uuid [ref: > users.id]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+// ───────────────────────── Workspaces & membership ─────────────────────────
+
+Table workspaces {
+  id uuid [pk, default: `uuidv7()`]
+  name text [not null]
+  slug text [not null, unique, note: 'URL-safe, globally unique']
+  description text [not null, default: '']
+  is_protected boolean [not null, default: false, note: 'only owner can delete']
+  settings jsonb [not null, default: '{}']
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1, note: 'optimistic concurrency']
+}
+
+Table workspace_members {
+  workspace_id uuid [not null, ref: > workspaces.id]
+  user_id uuid [not null, ref: > users.id]
+  role text [not null, note: 'owner | admin | editor | viewer  (guests are share links, not members)']
+  can_view_sensitive boolean [not null, default: false, note: 'decided by owner/admin per member; owner/admin always see']
+  added_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workspace_id, user_id) [pk]
+    user_id
+  }
+}
+
+// ───────────────────────── Inventory (shared per workspace) ─────────────────────────
+
+Table areas {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null, ref: > workspaces.id]
+  parent_id uuid [null, note: 'nesting; cycles rejected by trigger']
+  name text [not null]
+  kind text [not null, default: 'custom', note: 'site | network | vlan | cloud | custom']
+  color text [not null, default: 'yellow', note: 'box color: yellow | teal | violet | rose | blue | green | gray']
+  cidr cidr [null]
+  vlan_id integer [null, note: '1..4094']
+  description text [not null, default: '']
+  properties jsonb [not null, default: '[]', note: 'list of fields, see Field format']
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1]
+
+  indexes {
+    (workspace_id, id) [unique]
+    (workspace_id, parent_id)
+  }
+}
+
+Table nodes {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null, ref: > workspaces.id]
+  area_id uuid [null]
+  slug text [not null, note: 'stable handle used by workflow scripts: ctx.node("npm-main")']
+  name text [not null]
+  category text [not null, note: 'network | compute | service | storage | external | generic']
+  type text [not null, default: 'builtin.generic', note: 'builtin.* or <plugin-id>/<node-type>']
+  icon text [null, note: 'optional icon override']
+  description text [not null, default: '']
+  properties jsonb [not null, default: '[]', note: 'list of fields, see Field format']
+  health_status text [not null, default: 'unknown', note: 'healthy | degraded | down | unknown']
+  health_source text [not null, default: 'manual', note: 'manual | plugin']
+  health_message text [null]
+  health_checked_at timestamptz [null]
+  is_protected boolean [not null, default: false]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1]
+
+  indexes {
+    (workspace_id, id) [unique]
+    (workspace_id, slug) [unique]
+    (workspace_id, area_id)
+    (workspace_id, category)
+  }
+  Note: '''
+  Field format (nodes.properties, links.properties, areas.properties):
+  [{ "key": "ip", "label": "IP address", "value": "10.0.0.1", "sensitive": true }]
+  Sensitive fields are removed by the API for members without can_view_sensitive and for guests.
+  '''
+}
+
+Table links {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null, ref: > workspaces.id]
+  source_node_id uuid [not null]
+  target_node_id uuid [not null, note: 'must differ from source']
+  kind text [not null, note: 'physical | vpn_tunnel | proxy_route | dns_dependency | storage_mount | logical']
+  directed boolean [not null, default: false]
+  label text [not null, default: '']
+  source_port text [null, note: 'e.g. eth0, port 443']
+  target_port text [null]
+  properties jsonb [not null, default: '[]']
+  health_status text [not null, default: 'unknown']
+  health_source text [not null, default: 'manual']
+  health_message text [null]
+  health_checked_at timestamptz [null]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1]
+
+  indexes {
+    (workspace_id, id) [unique]
+    (workspace_id, source_node_id)
+    (workspace_id, target_node_id)
+  }
+}
+
+Table notes {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null, ref: > workspaces.id]
+  node_id uuid [null]
+  link_id uuid [null]
+  area_id uuid [null]
+  canvas_id uuid [null, note: 'at most one target is set; none = workspace-level note']
+  kind text [not null, default: 'note', note: 'note | rule  (rules are documentation in v1)']
+  title text [not null, default: '']
+  body text [not null, default: '', note: 'markdown']
+  is_sensitive boolean [not null, default: false]
+  color text [not null, default: 'default', note: 'default | yellow | teal | violet | rose']
+  created_by uuid [ref: > users.id]
+  updated_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1]
+
+  indexes {
+    (workspace_id, id) [unique]
+    (workspace_id, node_id)
+    (workspace_id, link_id)
+    (workspace_id, area_id)
+    (workspace_id, canvas_id)
+  }
+}
+
+// ───────────────────────── Canvases (views) ─────────────────────────
+
+Table canvases {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null, ref: > workspaces.id]
+  area_id uuid [null, note: 'set = inner canvas of an area (opened by entering the area), not shown as a tab']
+  name text [not null, note: 'unique per workspace among tab canvases']
+  description text [not null, default: '']
+  sort_order integer [not null, default: 0]
+  viewport jsonb [not null, default: '{"x":0,"y":0,"zoom":1}']
+  settings jsonb [not null, default: '{}', note: 'grid, snap, show health, ...']
+  is_protected boolean [not null, default: false]
+  locked_by uuid [ref: > users.id, note: 'edit lock (safety, not permission)']
+  locked_at timestamptz
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  version integer [not null, default: 1]
+
+  indexes {
+    (workspace_id, id) [unique]
+    (workspace_id, name) [unique, note: 'where area_id is null']
+    area_id [unique, note: 'where area_id is not null: one inner canvas per area']
+  }
+}
+
+Table canvas_grants {
+  workspace_id uuid [not null]
+  canvas_id uuid [not null]
+  user_id uuid [not null]
+  granted_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (canvas_id, user_id) [pk]
+    (workspace_id, user_id)
+  }
+  Note: 'Which canvases an editor may see and edit. Viewers see all canvases; owner/admin see everything.'
+}
+
+Table placements {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null]
+  canvas_id uuid [not null]
+  node_id uuid [null]
+  area_id uuid [null]
+  note_id uuid [null]
+  link_id uuid [null, note: 'exactly one of node/area/note/link is set. Link rows are overrides only']
+  parent_placement_id uuid [null, note: 'drawn inside this area box; must be the box of the item own area']
+  x double [not null, default: 0]
+  y double [not null, default: 0]
+  width double [null]
+  height double [null]
+  z_index integer [not null, default: 0]
+  collapsed boolean [not null, default: false, note: 'area boxes: shown as one block you can enter']
+  hidden boolean [not null, default: false, note: 'link overrides: hide this link on this canvas']
+  style jsonb [not null, default: '{}', note: 'per-canvas look: color, label position, size...']
+  waypoints jsonb [null, note: 'link routing points [{x,y}]']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (canvas_id, node_id) [unique, note: 'where node_id is not null']
+    (canvas_id, area_id) [unique, note: 'where area_id is not null']
+    (canvas_id, note_id) [unique, note: 'where note_id is not null']
+    (canvas_id, link_id) [unique, note: 'where link_id is not null']
+    (workspace_id, node_id)
+    (workspace_id, link_id)
+  }
+  Note: '''
+  A placement = "this inventory item appears on this canvas, here, looking like this".
+  Links are NOT placed: a link shows automatically wherever both of its nodes are placed
+  (view canvas_visible_links). A link placement is only an override: hide, restyle or route it.
+  Canvas setting hiddenLinkKinds hides whole kinds (e.g. physical cables on a services view).
+  Area boxes: items can be drawn inside the box of the area they belong to (trigger-checked);
+  moving a node to another area re-parents its drawings (trigger).
+  '''
+}
+
+Table canvas_shapes {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null]
+  canvas_id uuid [not null]
+  kind text [not null, note: 'text | rectangle | ellipse | line | arrow | freehand']
+  x double [not null, default: 0]
+  y double [not null, default: 0]
+  width double [null]
+  height double [null]
+  rotation double [not null, default: 0]
+  z_index integer [not null, default: 0]
+  style jsonb [not null, default: '{}']
+  data jsonb [not null, default: '{}', note: 'text content, points, ...']
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workspace_id, canvas_id)
+  }
+  Note: 'Free drawing on a canvas (Excalidraw-style). Not part of the inventory.'
+}
+
+// ───────────────────────── Sharing & audit ─────────────────────────
+
+Table share_links {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [not null]
+  canvas_id uuid [not null]
+  label text [not null, default: '']
+  token_hash bytea [not null, unique]
+  password_hash text [null, note: 'argon2id; null = no password']
+  expires_at timestamptz [null]
+  revoked_at timestamptz [null]
+  created_by uuid [ref: > users.id]
+  created_at timestamptz [not null, default: `now()`]
+  last_used_at timestamptz [null]
+  use_count bigint [not null, default: 0]
+
+  indexes {
+    (workspace_id, canvas_id)
+  }
+  Note: 'Guest access = read-only view of one canvas. Guests never receive sensitive data.'
+}
+
+Table audit_log {
+  id uuid [pk, default: `uuidv7()`]
+  workspace_id uuid [null, ref: > workspaces.id, note: 'null = instance-level event']
+  actor_type text [not null, note: 'user | share_link | system | workflow']
+  actor_id uuid [null]
+  action text [not null, note: 'e.g. node.create, member.role_change']
+  target_type text [null]
+  target_id uuid [null]
+  metadata jsonb [not null, default: '{}']
+  ip inet [null]
+  user_agent text [null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (workspace_id, created_at)
+    (actor_type, actor_id)
+  }
+  Note: 'Append-only (UPDATE is blocked by trigger). DELETE allowed for retention and workspace deletion.'
+}
+
+// ───────────────────────── Composite (same-workspace) references ─────────────────────────
+
+Ref: areas.(workspace_id, parent_id) > areas.(workspace_id, id) [delete: set null]
+Ref: nodes.(workspace_id, area_id) > areas.(workspace_id, id) [delete: set null]
+Ref: links.(workspace_id, source_node_id) > nodes.(workspace_id, id) [delete: cascade]
+Ref: links.(workspace_id, target_node_id) > nodes.(workspace_id, id) [delete: cascade]
+Ref: notes.(workspace_id, node_id) > nodes.(workspace_id, id) [delete: cascade]
+Ref: notes.(workspace_id, link_id) > links.(workspace_id, id) [delete: cascade]
+Ref: notes.(workspace_id, area_id) > areas.(workspace_id, id) [delete: cascade]
+Ref: notes.(workspace_id, canvas_id) > canvases.(workspace_id, id) [delete: cascade]
+Ref: canvas_grants.(workspace_id, canvas_id) > canvases.(workspace_id, id) [delete: cascade]
+Ref: canvas_grants.(workspace_id, user_id) > workspace_members.(workspace_id, user_id) [delete: cascade]
+Ref: canvases.(workspace_id, area_id) > areas.(workspace_id, id) [delete: cascade]
+Ref: placements.(workspace_id, canvas_id) > canvases.(workspace_id, id) [delete: cascade]
+Ref: placements.(workspace_id, canvas_id, parent_placement_id) > placements.(workspace_id, canvas_id, id) [delete: set null]
+Ref: placements.(workspace_id, node_id) > nodes.(workspace_id, id) [delete: cascade]
+Ref: placements.(workspace_id, area_id) > areas.(workspace_id, id) [delete: cascade]
+Ref: placements.(workspace_id, note_id) > notes.(workspace_id, id) [delete: cascade]
+Ref: placements.(workspace_id, link_id) > links.(workspace_id, id) [delete: cascade]
+Ref: canvas_shapes.(workspace_id, canvas_id) > canvases.(workspace_id, id) [delete: cascade]
+Ref: share_links.(workspace_id, canvas_id) > canvases.(workspace_id, id) [delete: cascade]
+
+// ───────────────────────── Groups (diagram colors) ─────────────────────────
+
+TableGroup accounts [color: #64748b] {
+  users
+  user_identities
+  sessions
+  instance_settings
+}
+
+TableGroup workspace_access [color: #0e7490] {
+  workspaces
+  workspace_members
+  canvas_grants
+  share_links
+  audit_log
+}
+
+TableGroup inventory [color: #15803d] {
+  areas
+  nodes
+  links
+  notes
+}
+
+TableGroup canvas_views [color: #7c3aed] {
+  canvases
+  placements
+  canvas_shapes
+}
+
+// Not in v1 migration 0001. Added with their phases:
+//   C3 plugins:   plugin_installations, credentials, nodes.plugin_installation_id, nodes.config, health_events
+//   C4 workflows: workflows, workflow_triggers, runs, run_steps
