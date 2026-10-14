@@ -280,6 +280,19 @@
     var(--shadow-sm);
 }
 
+/* a toast's one-time glow: a soft ring in its tone (green / amber / red) that grows and fades */
+@keyframes toast-glow {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--toast-tone) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 7px color-mix(in oklch, var(--toast-tone) 0%, transparent);
+  }
+}
+.toast-glow {
+  animation: detail-in 200ms var(--ease), toast-glow 900ms var(--ease) 120ms 1 both;
+}
+
 @keyframes detail-in {
   from {
     opacity: 0;

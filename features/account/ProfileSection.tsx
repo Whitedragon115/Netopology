@@ -69,7 +69,7 @@ function ProfilePanel({ me }: { me: Me }) {
           onClick={() =>
             update.mutate(
               { displayName: form.displayName.trim(), email: form.email.trim() || null },
-              { onSuccess: () => toast('Profile saved.'), onError: (e) => toast(accountError(e)) },
+              { onSuccess: () => toast('Profile saved.'), onError: (e) => toast(accountError(e), 'danger') },
             )
           }
         >
@@ -151,7 +151,7 @@ function SignInPanel() {
                 <>
                   <ModalClose asChild><Button>Cancel</Button></ModalClose>
                   <ModalClose asChild>
-                    <Button variant="danger" onClick={() => unlink.mutate(i.id, { onSuccess: () => toast(`${i.provider} unlinked.`), onError: (e) => toast(accountError(e)) })}>Unlink</Button>
+                    <Button variant="danger" onClick={() => unlink.mutate(i.id, { onSuccess: () => toast(`${i.provider} unlinked.`), onError: (e) => toast(accountError(e), 'danger') })}>Unlink</Button>
                   </ModalClose>
                 </>
               }

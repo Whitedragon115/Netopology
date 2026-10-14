@@ -230,7 +230,7 @@ export function DeleteNodeDialog({ node, open, onOpenChange }: { node: InvNode; 
           <Button
             variant="danger"
             disabled={blocked || del.isPending}
-            onClick={() => del.mutate(node.id, { onSuccess: () => { onOpenChange(false); toast(`Deleted ${node.name}.`); }, onError: (e) => toast(problem(e)) })}
+            onClick={() => del.mutate(node.id, { onSuccess: () => { onOpenChange(false); toast(`Deleted ${node.name}.`); }, onError: (e) => toast(problem(e), 'danger') })}
           >
             <Trash2 className="size-3.5" />
             Delete everywhere

@@ -94,7 +94,7 @@ export function ShareDialog({ open, onOpenChange, canvas }: { open: boolean; onO
                 onClick={() => {
                   void navigator.clipboard?.writeText(created.url).then(
                     () => toast('Link copied.'),
-                    () => toast('Copy failed: select the link and copy it yourself.'),
+                    () => toast('Copy failed: select the link and copy it yourself.', 'danger'),
                   );
                 }}
               >
@@ -176,7 +176,7 @@ function LinkRow({ link, canvasId }: { link: ShareLink; canvasId: string }) {
     if (pwMode === 'remove') body.password = null;
     if (expiry !== 'keep') body.expiresAt = expiry === 'never' ? null : expiresAt(expiry)!;
     if (!Object.keys(body).length) return setEditing(false);
-    update.mutate({ id: link.id, body }, { onSuccess: () => { setEditing(false); toast('Link updated.'); }, onError: (e) => toast(problem(e)) });
+    update.mutate({ id: link.id, body }, { onSuccess: () => { setEditing(false); toast('Link updated.'); }, onError: (e) => toast(problem(e), 'danger') });
   };
 
   const meta = [
@@ -210,7 +210,7 @@ function LinkRow({ link, canvasId }: { link: ShareLink; canvasId: string }) {
         )}
         {confirm && (
           <span className="flex items-center gap-1.5">
-            <Button size="sm" variant="danger" disabled={revoke.isPending} onClick={() => revoke.mutate(link.id, { onSuccess: () => toast('Link revoked. It stopped working right away.'), onError: (e) => toast(problem(e)), onSettled: () => setConfirm(false) })}>
+            <Button size="sm" variant="danger" disabled={revoke.isPending} onClick={() => revoke.mutate(link.id, { onSuccess: () => toast('Link revoked. It stopped working right away.'), onError: (e) => toast(problem(e), 'danger'), onSettled: () => setConfirm(false) })}>
               Revoke
             </Button>
             <IconButton label="Cancel" size="sm" onClick={() => setConfirm(false)}>

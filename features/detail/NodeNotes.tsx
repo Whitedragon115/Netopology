@@ -28,7 +28,7 @@ export function NodeNotes({ nodeId, notes, loading, canEdit, canSensitive }: { n
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
-  const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : 'Could not reach the server.');
+  const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : 'Could not reach the server.', 'danger');
 
   return (
     <div className="grid gap-2">

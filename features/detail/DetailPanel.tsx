@@ -402,13 +402,13 @@ function AreaDetails({ areaId }: { areaId: string }) {
   const color = area.color ?? 'yellow';
   const saveCidr = (v: string) => {
     const cidr = v.trim() || null;
-    if (cidr && !/^[0-9a-fA-F:.]+\/\d{1,3}$/.test(cidr)) return toast('Use a network like 192.168.1.0/24.');
+    if (cidr && !/^[0-9a-fA-F:.]+\/\d{1,3}$/.test(cidr)) return toast('Use a network like 192.168.1.0/24.', 'warning');
     editor.updateArea(area.id, { cidr }, { cidr: area.cidr ?? null }, 'Change CIDR');
   };
   const saveVlan = (v: string) => {
     const t = v.trim();
     const vlanId = t ? Number(t) : null;
-    if (vlanId !== null && !(Number.isInteger(vlanId) && vlanId >= 1 && vlanId <= 4094)) return toast('A VLAN ID is a whole number from 1 to 4094.');
+    if (vlanId !== null && !(Number.isInteger(vlanId) && vlanId >= 1 && vlanId <= 4094)) return toast('A VLAN ID is a whole number from 1 to 4094.', 'warning');
     editor.updateArea(area.id, { vlanId }, { vlanId: area.vlanId ?? null }, 'Change VLAN');
   };
 

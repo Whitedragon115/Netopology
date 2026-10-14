@@ -74,7 +74,7 @@ export function WorkspaceShell({ slug, canvasId }: { slug: string; canvasId?: st
     if (!workspace) return;
     configureSync({
       drained: () => void qc.invalidateQueries({ queryKey: keys.ws(workspace.id) }),
-      failed: (m) => toast(`${m}. It was undone.`),
+      failed: (m) => toast(`${m}. It was undone.`, 'danger'),
     });
   }, [workspace, qc, toast]);
 
@@ -90,7 +90,7 @@ export function WorkspaceShell({ slug, canvasId }: { slug: string; canvasId?: st
   const onCanvasDeleted = useCallback(
     (id: string) => {
       if (id !== shownRef.current || !workspace) return;
-      toast('Someone deleted the canvas you were on.');
+      toast('Someone deleted the canvas you were on.', 'warning');
       const next = qc.getQueryData<Canvas[]>(keys.canvases(workspace.id))?.find((c) => c.id !== id);
       router.replace(next ? `/w/${slug}/c/${next.id}` : `/w/${slug}`);
     },
@@ -121,7 +121,7 @@ export function WorkspaceShell({ slug, canvasId }: { slug: string; canvasId?: st
         const usage = unwrap(await api.GET('/workspaces/{wsId}/nodes/{nodeId}/usage', { params: { path: { wsId: workspace.id, nodeId } } }));
         const target = usage.canvases[0];
         if (!target) {
-          toast('This node is not drawn on any canvas you can see.');
+          toast('This node is not drawn on any canvas you can see.', 'warning');
           return;
         }
         select({ type: 'node', id: nodeId });

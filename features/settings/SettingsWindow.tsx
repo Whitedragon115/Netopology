@@ -1,15 +1,17 @@
 'use client';
 
-import { KeyRound, ServerCog, SlidersHorizontal, UserRound, Users, X, type LucideIcon } from 'lucide-react';
+import { Bell, KeyRound, ServerCog, SlidersHorizontal, UserRound, Users, X, type LucideIcon } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { IconButton } from '@/components/ui/button';
+import { Switch } from '@/components/ui/controls';
 import { cn } from '@/lib/cn';
 import { AccountsActions, AccountsPage, ServerSettingsPage } from '../account/AdminSection';
 import { ProfilePage, SecurityPage } from '../account/ProfileSection';
 import { useSession } from '../auth/api';
 import { WorkspaceSettings } from '../sections/WorkspaceSettings';
 import { useWorkspace } from '../workspace/context';
+import { Panel, Row } from '../sections/parts';
 import { useUi, type SettingsPage } from '../workspace/store';
 
 /*
@@ -19,6 +21,20 @@ import { useUi, type SettingsPage } from '../workspace/store';
  */
 
 type Page = { id: SettingsPage; label: string; icon: LucideIcon; title: string; description: string; body: ReactNode; actions?: ReactNode };
+
+function PreferencesPage() {
+  const { notifications, setNotifications } = useUi();
+  return (
+    <Panel title="Notifications" description="The small message that appears at the top after you do something, like saving or deleting.">
+      <Row label="Action notifications" hint="Saved on this device only.">
+        <label className="flex items-center gap-3 text-[13px]">
+          <Switch checked={notifications} onChange={(e) => setNotifications(e.target.checked)} />
+          {notifications ? 'On' : 'Off'}
+        </label>
+      </Row>
+    </Panel>
+  );
+}
 
 export function SettingsWindow() {
   const { settings, openSettings } = useUi();
@@ -35,6 +51,7 @@ export function SettingsWindow() {
       title: 'Your account',
       pages: [
         { id: 'profile', label: 'Profile', icon: UserRound, title: 'Profile', description: 'How you appear to others, and your email.', body: <ProfilePage /> },
+        { id: 'preferences', label: 'Preferences', icon: Bell, title: 'Preferences', description: 'How this app behaves for you, on this device.', body: <PreferencesPage /> },
         { id: 'security', label: 'Password & sign-in', icon: KeyRound, title: 'Password & sign-in', description: 'Your password and the accounts you can sign in with.', body: <SecurityPage /> },
       ],
     },

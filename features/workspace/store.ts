@@ -10,7 +10,7 @@ export type Selection = { type: 'node' | 'area' | 'link' | 'note' | 'shape'; id:
 export type MonitorTab = 'overview' | 'uptime' | 'resources' | 'snmp' | 'traffic';
 export type Section = 'inventory' | 'members' | 'monitor' | 'activity' | 'workflows' | 'plugins' | null;
 /** Pages of the settings window (one window, a sidebar of categories). accounts/server: server staff only. */
-export type SettingsPage = 'workspace' | 'profile' | 'security' | 'accounts' | 'server';
+export type SettingsPage = 'workspace' | 'profile' | 'security' | 'accounts' | 'server' | 'preferences';
 export type Tool =
   | { kind: 'select' }
   | { kind: 'pan' }
@@ -26,6 +26,7 @@ export type DrawShape = 'text' | 'rectangle' | 'ellipse' | 'arrow' | 'freehand';
 const PANEL_KEY = 'netopology.leftPanelWidth';
 export const PANEL_MIN = 220;
 export const PANEL_MAX = 440;
+const NOTIFY_KEY = 'netopology.actionNotifications';
 const RIGHT_KEY = 'netopology.rightPanelWidth';
 export const RIGHT_MIN = 320;
 export const RIGHT_MAX = 620;
@@ -35,6 +36,14 @@ function saved(key: string, min: number, max: number, fallback: number) {
   try {
     const v = Number(localStorage.getItem(key));
     return v >= min && v <= max ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function savedFlag(key: string, fallback: boolean) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === '1';
   } catch {
     return fallback;
   }
@@ -59,6 +68,8 @@ interface UiState {
   leftWidth: number;
   rightWidth: number;
   leftCollapsed: boolean;
+  /** Show the little message after an action (saved, deleted, ...). On by default. */
+  notifications: boolean;
   fold: { canvases: boolean };
   legendOpen: boolean;
   paletteOpen: boolean;
@@ -71,6 +82,7 @@ interface UiState {
   setLeftWidth: (w: number) => void;
   setRightWidth: (w: number) => void;
   toggleLeft: () => void;
+  setNotifications: (on: boolean) => void;
   toggleFold: (k: 'canvases') => void;
   setLegend: (open: boolean) => void;
   setPalette: (open: boolean) => void;
@@ -99,6 +111,7 @@ export const useUi = create<UiState>((set) => ({
   leftWidth: 260,
   rightWidth: 360,
   leftCollapsed: false,
+  notifications: true,
   fold: { canvases: true },
   legendOpen: false,
   paletteOpen: false,
@@ -119,9 +132,17 @@ export const useUi = create<UiState>((set) => ({
     remember(RIGHT_KEY, rightWidth);
     set({ rightWidth });
   },
+  setNotifications: (notifications) => {
+    try {
+      localStorage.setItem(NOTIFY_KEY, notifications ? '1' : '0');
+    } catch {
+      /* storage blocked: the choice just isn't remembered */
+    }
+    set({ notifications });
+  },
   toggleLeft: () => set((s) => ({ leftCollapsed: !s.leftCollapsed })),
   toggleFold: (k) => set((s) => ({ fold: { ...s.fold, [k]: !s.fold[k] } })),
   setLegend: (legendOpen) => set({ legendOpen }),
   setPalette: (paletteOpen) => set({ paletteOpen }),
-  hydrate: () => set({ leftWidth: saved(PANEL_KEY, PANEL_MIN, PANEL_MAX, 260), rightWidth: saved(RIGHT_KEY, RIGHT_MIN, RIGHT_MAX, 360) }),
+  hydrate: () => set({ notifications: savedFlag(NOTIFY_KEY, true), leftWidth: saved(PANEL_KEY, PANEL_MIN, PANEL_MAX, 260), rightWidth: saved(RIGHT_KEY, RIGHT_MIN, RIGHT_MAX, 360) }),
 }));

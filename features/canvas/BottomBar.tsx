@@ -144,7 +144,7 @@ export function BottomBar({ canvasId, onPlace }: { canvasId: string; onPlace: (n
   const toggleLock = (on: boolean) =>
     lock.mutate(on, {
       onSuccess: () => toast(on ? 'Canvas locked. Nobody can change it until it is unlocked.' : 'Canvas unlocked.'),
-      onError: (e) => toast(e.message),
+      onError: (e) => toast(e.message, 'danger'),
     });
   const [openId, setOpenId] = useState<string | null>(null);
   const menu: MenuState = { openId, setOpenId };

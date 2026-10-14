@@ -57,10 +57,10 @@ export function MembersSection() {
   const setRole = (m: Member, role: Role) =>
     update.mutate(
       { userId: m.user.id, body: { role } },
-      { onSuccess: () => toast(`${m.user.displayName || m.user.username} is now ${role}.`), onError: (e) => toast(memberError(e)) },
+      { onSuccess: () => toast(`${m.user.displayName || m.user.username} is now ${role}.`), onError: (e) => toast(memberError(e), 'danger') },
     );
   const setSensitive = (m: Member, canViewSensitive: boolean) =>
-    update.mutate({ userId: m.user.id, body: { canViewSensitive } }, { onError: (e) => toast(memberError(e)) });
+    update.mutate({ userId: m.user.id, body: { canViewSensitive } }, { onError: (e) => toast(memberError(e), 'danger') });
 
   return (
     <>
@@ -132,7 +132,7 @@ export function MembersSection() {
                           text="You lose access to this workspace until someone adds you again."
                           pending={remove.isPending}
                           onConfirm={() =>
-                            remove.mutate(m.user.id, { onSuccess: () => router.replace('/'), onError: (e) => toast(memberError(e)) })
+                            remove.mutate(m.user.id, { onSuccess: () => router.replace('/'), onError: (e) => toast(memberError(e), 'danger') })
                           }
                         />
                       ) : (
@@ -142,7 +142,7 @@ export function MembersSection() {
                             title={`Remove ${name}?`}
                             text={`${name} loses access to ${workspace.name}. Their account stays.`}
                             pending={remove.isPending}
-                            onConfirm={() => remove.mutate(m.user.id, { onSuccess: () => toast(`Removed ${name}.`), onError: (e) => toast(memberError(e)) })}
+                            onConfirm={() => remove.mutate(m.user.id, { onSuccess: () => toast(`Removed ${name}.`), onError: (e) => toast(memberError(e), 'danger') })}
                           />
                         )
                       )}
@@ -211,7 +211,7 @@ function GrantsDialog({ member, canvases }: { member: Member; canvases: { id: st
             onClick={() =>
               grants.mutate(
                 { userId: member.user.id, canvasIds: [...picked] },
-                { onSuccess: () => { setOpen(false); toast(`Canvas access for ${name} saved.`); }, onError: (e) => toast(memberError(e)) },
+                { onSuccess: () => { setOpen(false); toast(`Canvas access for ${name} saved.`); }, onError: (e) => toast(memberError(e), 'danger') },
               )
             }
           >

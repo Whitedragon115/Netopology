@@ -58,7 +58,7 @@ export function WorkspaceSettings() {
   const toggleProtected = (on: boolean) =>
     update.mutate(
       { ws: workspace, body: { isProtected: on } },
-      { onSuccess: () => toast(on ? 'Workspace protected: only the owner can delete it.' : 'Protection removed.'), onError: (e) => toast(settingsError(e)) },
+      { onSuccess: () => toast(on ? 'Workspace protected: only the owner can delete it.' : 'Protection removed.'), onError: (e) => toast(settingsError(e), 'danger') },
     );
 
   return (
@@ -133,7 +133,7 @@ function DeletePanel({ onDeleted }: { onDeleted: () => void }) {
               <Button
                 variant="danger"
                 disabled={typed !== workspace.slug || del.isPending}
-                onClick={() => del.mutate(workspace, { onSuccess: () => { toast(`Deleted ${workspace.name}.`); onDeleted(); }, onError: (e) => toast(settingsError(e)) })}
+                onClick={() => del.mutate(workspace, { onSuccess: () => { toast(`Deleted ${workspace.name}.`); onDeleted(); }, onError: (e) => toast(settingsError(e), 'danger') })}
               >
                 Delete for good
               </Button>

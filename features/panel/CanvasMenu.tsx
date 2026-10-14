@@ -32,12 +32,12 @@ export function CanvasMenu({ canvas }: { canvas: Canvas }) {
   const rename = () =>
     update.mutate(
       { canvas, body: { name: name.trim() } },
-      { onSuccess: () => { setDialog(null); toast('Canvas renamed.'); }, onError: (e) => toast(canvasError(e)) },
+      { onSuccess: () => { setDialog(null); toast('Canvas renamed.'); }, onError: (e) => toast(canvasError(e), 'danger') },
     );
   const protect = (on: boolean) =>
     update.mutate(
       { canvas, body: { isProtected: on } },
-      { onSuccess: () => toast(on ? `${canvas.name} is protected: only the owner can delete it.` : 'Protection removed.'), onError: (e) => toast(canvasError(e)) },
+      { onSuccess: () => toast(on ? `${canvas.name} is protected: only the owner can delete it.` : 'Protection removed.'), onError: (e) => toast(canvasError(e), 'danger') },
     );
 
   return (
@@ -100,7 +100,7 @@ export function CanvasMenu({ canvas }: { canvas: Canvas }) {
                     toast(`Deleted canvas ${canvas.name}.`);
                     if (canvas.id === canvasId && others[0]) goToCanvas(others[0].id);
                   },
-                  onError: (e) => toast(canvasError(e)),
+                  onError: (e) => toast(canvasError(e), 'danger'),
                 })
               }
             >

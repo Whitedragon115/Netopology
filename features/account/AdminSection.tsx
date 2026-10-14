@@ -57,7 +57,7 @@ function Accounts({ me }: { me: Me }) {
   // server admins can't modify the owner or other admins (permissions.md, Instance)
   const canEdit = (a: Account) => a.id !== me.id && (isOwner || a.instanceRole === 'member');
   const save = (a: Account, body: Parameters<typeof update.mutate>[0]['body'], done: string) =>
-    update.mutate({ userId: a.id, body }, { onSuccess: () => toast(done), onError: (e) => toast(adminError(e)) });
+    update.mutate({ userId: a.id, body }, { onSuccess: () => toast(done), onError: (e) => toast(adminError(e), 'danger') });
 
   return (
     <>
@@ -220,7 +220,7 @@ function ResetPasswordDialog({ account }: { account: Account }) {
         <>
           <ModalClose asChild><Button>Cancel</Button></ModalClose>
           <ModalClose asChild>
-            <Button variant="primary" disabled={pw.length < 12 || reset.isPending} onClick={() => reset.mutate({ userId: account.id, newPassword: pw }, { onSuccess: () => toast(`Password reset for ${name}.`), onError: (e) => toast(adminError(e)) })}>
+            <Button variant="primary" disabled={pw.length < 12 || reset.isPending} onClick={() => reset.mutate({ userId: account.id, newPassword: pw }, { onSuccess: () => toast(`Password reset for ${name}.`), onError: (e) => toast(adminError(e), 'danger') })}>
               Reset
             </Button>
           </ModalClose>
@@ -246,7 +246,7 @@ function TransferDialog({ account }: { account: Account }) {
         <>
           <ModalClose asChild><Button>Cancel</Button></ModalClose>
           <ModalClose asChild>
-            <Button variant="danger" onClick={() => update.mutate({ userId: account.id, body: { instanceRole: 'owner' } }, { onSuccess: () => toast(`${name} is now the server owner.`), onError: (e) => toast(adminError(e)) })}>
+            <Button variant="danger" onClick={() => update.mutate({ userId: account.id, body: { instanceRole: 'owner' } }, { onSuccess: () => toast(`${name} is now the server owner.`), onError: (e) => toast(adminError(e), 'danger') })}>
               Transfer ownership
             </Button>
           </ModalClose>
@@ -276,7 +276,7 @@ function ServerSettings() {
               variant="primary"
               size="sm"
               disabled={!ttlOk || Number(ttl) === s.sessionTtlHours || update.isPending}
-              onClick={() => update.mutate({ ...s, sessionTtlHours: Number(ttl) }, { onSuccess: () => { setHours(null); toast('Session length saved. It applies to new sign-ins.'); }, onError: (e) => toast(adminError(e)) })}
+              onClick={() => update.mutate({ ...s, sessionTtlHours: Number(ttl) }, { onSuccess: () => { setHours(null); toast('Session length saved. It applies to new sign-ins.'); }, onError: (e) => toast(adminError(e), 'danger') })}
             >
               Save
             </Button>
@@ -286,7 +286,7 @@ function ServerSettings() {
           <Switch
             checked={s.oauthAutoLinkByEmail ?? true}
             disabled={update.isPending}
-            onChange={(e) => update.mutate({ ...s, oauthAutoLinkByEmail: e.target.checked }, { onError: (err) => toast(adminError(err)) })}
+            onChange={(e) => update.mutate({ ...s, oauthAutoLinkByEmail: e.target.checked }, { onError: (err) => toast(adminError(err), 'danger') })}
             aria-label="Link Google/Discord sign-ins by verified email"
           />
         </Row>

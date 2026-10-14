@@ -182,7 +182,7 @@ export function LeftPanel() {
                         goToCanvas(canvas.id);
                         toast(`Canvas “${canvas.name}” created. Add nodes from the toolbar or place existing ones from the inventory.`);
                       },
-                      onError: (error) => toast(error.message),
+                      onError: (error) => toast(error.message, 'danger'),
                     })
                   }
                 />

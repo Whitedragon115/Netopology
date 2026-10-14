@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
+import type { ToastTone } from '@/components/toast';
 import type { CanvasView, Workspace } from '@/lib/api/types';
 
 export interface WorkspaceCtx {
@@ -11,7 +12,7 @@ export interface WorkspaceCtx {
   enterArea: (areaId: string) => Promise<void>;
   /** Open whichever canvas shows this node (current one first) and select it. */
   revealNode: (nodeId: string) => Promise<void>;
-  toast: (message: string) => void;
+  toast: (message: string, tone?: ToastTone) => void;
 }
 
 export const WorkspaceContext = createContext<WorkspaceCtx | null>(null);
