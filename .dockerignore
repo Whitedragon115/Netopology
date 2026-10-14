@@ -1,0 +1,10 @@
+.git
+node_modules
+.next
+backend
+docs
+deploy
+*.md
+.env
+.env*.local
+tsconfig.tsbuildinfo

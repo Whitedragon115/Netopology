@@ -1,0 +1,88 @@
+# Netopology, the full stack:  cp .env.example .env  (fill in the secrets)  then  docker compose up -d --build
+# Architecture: IDEA.md §14. Only the gateway publishes a port; the database is on an internal network.
+name: netopology
+
+x-backend: &backend
+  build: ./backend
+  image: netopology-backend:local
+  restart: unless-stopped
+  environment: &backend-env
+    NETOPOLOGY_ENV: production
+    NETOPOLOGY_PUBLIC_URL: ${NETOPOLOGY_PUBLIC_URL:-http://localhost}
+    NETOPOLOGY_COOKIE_SECURE: ${NETOPOLOGY_COOKIE_SECURE:-true}
+    NETOPOLOGY_SECRET_KEY: ${NETOPOLOGY_SECRET_KEY:?set NETOPOLOGY_SECRET_KEY in .env (openssl rand -base64 32)}
+    NETOPOLOGY_DATABASE_URL: postgres://netopology_app:${NETOPOLOGY_DB_APP_PASSWORD:?set NETOPOLOGY_DB_APP_PASSWORD in .env}@db:5432/netopology?sslmode=disable
+    NETOPOLOGY_MIGRATE_DATABASE_URL: postgres://netopology_owner:${NETOPOLOGY_DB_OWNER_PASSWORD:?set NETOPOLOGY_DB_OWNER_PASSWORD in .env}@db:5432/netopology?sslmode=disable
+    NETOPOLOGY_GOOGLE_CLIENT_ID: ${NETOPOLOGY_GOOGLE_CLIENT_ID:-}
+    NETOPOLOGY_GOOGLE_CLIENT_SECRET: ${NETOPOLOGY_GOOGLE_CLIENT_SECRET:-}
+    NETOPOLOGY_DISCORD_CLIENT_ID: ${NETOPOLOGY_DISCORD_CLIENT_ID:-}
+    NETOPOLOGY_DISCORD_CLIENT_SECRET: ${NETOPOLOGY_DISCORD_CLIENT_SECRET:-}
+
+services:
+  gateway:
+    build: ./deploy/nginx
+    image: netopology-gateway:local
+    restart: unless-stopped
+    ports:
+      - "${NETOPOLOGY_HTTP_PORT:-80}:80"
+    depends_on:
+      web: { condition: service_started }
+      api: { condition: service_healthy }
+    networks: [edge]
+
+  web:
+    build: .
+    image: netopology-web:local
+    restart: unless-stopped
+    networks: [edge]
+
+  api:
+    <<: *backend
+    command: ["api"]
+    environment:
+      <<: *backend-env
+      NETOPOLOGY_MIGRATE_ON_START: "true" # behind an advisory lock
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/netopology", "healthcheck"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+      start_period: 10s
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [edge, core]
+
+  worker:
+    <<: *backend
+    command: ["worker"]
+    environment:
+      <<: *backend-env
+      NETOPOLOGY_MIGRATE_ON_START: "false"
+    depends_on:
+      api: { condition: service_healthy } # the api has applied the migrations
+    networks: [core] # later also `sandbox` (phase C3)
+
+  db:
+    build: ./backend/db
+    image: netopology-postgres:local
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${NETOPOLOGY_DB_SUPERUSER_PASSWORD:?set NETOPOLOGY_DB_SUPERUSER_PASSWORD in .env}
+      NETOPOLOGY_DB_OWNER_PASSWORD: ${NETOPOLOGY_DB_OWNER_PASSWORD}
+      NETOPOLOGY_DB_APP_PASSWORD: ${NETOPOLOGY_DB_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d netopology"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [core] # never published
+
+networks:
+  edge: {}
+  core:
+    internal: true # no internet access; the database is only reachable from api and worker
+
+volumes:
+  pgdata:
