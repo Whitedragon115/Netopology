@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Netopology UI Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+    <!-- the real design tokens used by the web app -->
+    <link rel="stylesheet" href="../../../styles/tokens.css" />
+    <link rel="stylesheet" href="prototype.css" />
+  </head>
+  <body>
+    <!-- Phase A4 clickable prototype. Not production code: no API, sample data only.
+         Serve the REPO ROOT over HTTP and open /docs/design/prototype/ (see docs/design/ui.md). -->
+    <div class="proto-bar" id="proto-bar"></div>
+    <div id="app"></div>
+    <div id="modal-root"></div>
+    <div id="palette-root"></div>
+    <div id="toast-root" aria-live="polite"></div>
+    <script src="prototype.js"></script>
+  </body>
+</html>

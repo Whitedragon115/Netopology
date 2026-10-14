@@ -1,1 +1,30 @@
 .claude/launch.json
+/.next
+/node_modules
+.env
+.env.development.local
+
+# build output and generated files
+/out
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# env files: only .env.example is committed
+.env.*.local
+.env.local
+
+# logs, editor and OS files
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local scratch: Multica CLI helper files
+.multica-tmp/
+
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -1,0 +1,7 @@
+.next
+node_modules
+backend
+pnpm-lock.yaml
+public/mockServiceWorker.js
+lib/api/schema.d.ts
+docs/design/prototype

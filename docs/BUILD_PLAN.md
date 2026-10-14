@@ -6,10 +6,13 @@
 
 | Step | State | Output |
 |------|-------|--------|
-| A1 Data model | ✅ drafted, tested on PostgreSQL 18.6 (awaiting review) | [data-model.md](design/data-model.md), [schema.dbml](design/schema.dbml), [migrations](../apps/core/db/migrations/), [scenarios.sql](../apps/core/db/tests/scenarios.sql) |
-| A2 Permissions | ✅ drafted (awaiting review) | [permissions.md](design/permissions.md) |
-| A3 API contract | ✅ drafted: 65 operations, all mapped to permission keys (awaiting review) | [openapi.yaml](api/openapi.yaml), view with Scalar via [index.html](api/index.html) |
-| A4 UI design | ⏳ next | |
+| A1 Data model | ✅ reviewed, tested on PostgreSQL 18.6 (27 checks) | [data-model.md](design/data-model.md), [schema.dbml](design/schema.dbml), [migrations](../backend/db/migrations/), [scenarios.sql](../backend/db/tests/scenarios.sql) |
+| A2 Permissions | ✅ reviewed | [permissions.md](design/permissions.md) |
+| A3 API contract | ✅ reviewed: 72 operations, all mapped to permission keys | [contract.yaml](../backend/api/contract.yaml), view with Scalar via [index.html](api/index.html) |
+| A4 UI design | ✅ approved | [ui.md](design/ui.md), [prototype](design/prototype/), [tokens.css](../styles/tokens.css) |
+| B3 Frontend core | 🚧 in progress: workspace screen done against a mock API (canvas with card nodes, area boxes and inner canvases, drag-into-area, link legend, left panel with Canvases/Monitor/Inventory/Members, detail panel, Ctrl+K palette, roles). Next: sign-in/setup screens, sharing, canvas editing tools | repo root: `app/`, `features/`, `components/`, `lib/`, `mocks/`; see [DEVELOPMENT.md](DEVELOPMENT.md) |
+| B1 Backend scaffold | ✅ architecture, environment and reference feature (first-run setup) built and tested on PostgreSQL 18.6; full-stack `compose.yaml` + images build | [ARCHITECTURE.md](../backend/docs/ARCHITECTURE.md), [ENVIRONMENT.md](../backend/docs/ENVIRONMENT.md), [compose.yaml](../compose.yaml) |
+| B2 Backend core | ⏳ split into work packages WP-03…WP-15 for implementation agents | [WORK_PACKAGES.md](../backend/docs/WORK_PACKAGES.md), [AGENTS.md](../backend/AGENTS.md) |
 
 ## How we build
 

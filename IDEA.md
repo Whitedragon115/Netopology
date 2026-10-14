@@ -290,12 +290,11 @@ Defaults I will assume unless you object (small, easy to change later):
 6. **Phase 5: Python host + git-based marketplace.**
 7. **Future:** auto-discovery scripts, rules engine, TOTP, sandboxed custom UI.
 
-## 11. Proposed repo layout 🟡
+## 11. Repo layout (as built; see CONVENTIONS.md §2)
 ```
-apps/web          Next.js UI (own container)
-apps/core         Go service: API, auth, scheduler, workflow engine (runs as `api` and `worker`)
-apps/sandbox      Node + Python plugin hosts (own container)
-deploy/           docker-compose.yml, compose.dev.yml, nginx.conf, .env.example
+/ (root)          Next.js UI (own container), compose.yaml, deploy/nginx, .env.example
+backend/          git submodule: Go service (api + worker), db migrations, API contract
+backend/sandbox   Node + Python plugin hosts (own container, phase C3)
 packages/sdk-ts   @netopology/plugin-sdk
 packages/sdk-py   netopology-sdk
 packages/schema   shared JSON Schemas / types (manifest, protocol)
@@ -403,16 +402,16 @@ sandbox  : worker, sandbox            <- sandbox cannot see db or api
 ```yaml
 services:
   gateway: { image: nginx:stable, ports: ["80:80", "443:443"], volumes: ["./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro", "./certs:/etc/nginx/certs:ro"], networks: [edge] }
-  web:     { build: ./apps/web, networks: [edge] }
-  api:     { build: ./apps/core, command: ["api"], env_file: .env, networks: [edge, core] }
-  worker:  { build: ./apps/core, command: ["worker"], env_file: .env, networks: [core, sandbox] }
-  sandbox: { build: ./apps/sandbox, read_only: true, cap_drop: [ALL],
+  web:     { build: ., networks: [edge] }
+  api:     { build: ./backend, command: ["api"], env_file: .env, networks: [edge, core] }
+  worker:  { build: ./backend, command: ["worker"], env_file: .env, networks: [core, sandbox] }
+  sandbox: { build: ./backend/sandbox, read_only: true, cap_drop: [ALL],
              volumes: ["plugins:/plugins:ro"], networks: [sandbox] }
   db:      { image: postgres:18, volumes: ["pgdata:/var/lib/postgresql/data"], networks: [core] }
 networks: { edge: {}, core: { internal: true }, sandbox: {} }
 volumes:  { pgdata: {}, plugins: {} }
 ```
-`core` is `internal: true` (no internet). Dev uses a `compose.dev.yml` overlay running the Go services under `air` with source mounted.
+`core` is `internal: true` (no internet). The real file is [`compose.yaml`](compose.yaml); backend developers run only Postgres in Docker (`backend/compose.dev.yaml`) and the Go services natively under `air`.
 
 ### 14.5 Trade-offs of going multi-container
 - More moving parts for users; mitigated by one `docker compose up`, one `.env.example`, health checks, and `depends_on: condition: service_healthy`.

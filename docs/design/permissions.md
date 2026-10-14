@@ -1,7 +1,7 @@
 # Permission Model (A2)
 
 > Status: **Draft v0.2**. Review decisions recorded in §6.
-> Every API operation declares one **permission key** (`x-permission` in [openapi.yaml](../api/openapi.yaml)). The same key is used as the **audit log action**. This file is the single place that says who may use each key.
+> Every API operation declares one **permission key** (`x-permission` in [contract.yaml](../../backend/api/contract.yaml)). The same key is used as the **audit log action**. This file is the single place that says who may use each key.
 
 ## 1. Actors
 

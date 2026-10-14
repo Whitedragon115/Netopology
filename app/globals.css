@@ -1,0 +1,426 @@
+@import 'tailwindcss';
+@import '../styles/tokens.css';
+@import '@xyflow/react/dist/base.css';
+
+@source not '../docs';
+@source not '../backend';
+
+/*
+ * Tailwind is limited to OUR tokens: the default color palette is removed, so `bg-red-500`
+ * simply does not exist (CONVENTIONS.md §5.2). Use bg-surface, text-muted, border-strong, ...
+ */
+@theme inline {
+  --color-*: initial;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-overlay: var(--overlay);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-on-accent: var(--text-on-accent);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-healthy: var(--status-healthy);
+  --color-degraded: var(--status-degraded);
+  --color-down: var(--status-down);
+  --color-unknown: var(--status-unknown);
+  --color-healthy-subtle: var(--status-healthy-subtle);
+  --color-degraded-subtle: var(--status-degraded-subtle);
+  --color-down-subtle: var(--status-down-subtle);
+  --color-unknown-subtle: var(--status-unknown-subtle);
+  --color-node: var(--node-bg);
+  --color-node-border: var(--node-border);
+  --color-node-border-hover: var(--node-border-hover);
+  --color-node-icon: var(--node-icon);
+  --color-node-icon-bg: var(--node-icon-bg);
+  --color-note-yellow: var(--note-yellow);
+  --color-note-text: var(--note-text);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+
+  --text-2xs: 11px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+/* floating surfaces (CONVENTIONS.md §5.5) */
+@utility float-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ───── React Flow, restyled with our tokens ───── */
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-edge-stroke: var(--link-line);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-selection-background-color: var(--accent-subtle);
+  --xy-selection-border: 1px solid var(--accent);
+}
+.react-flow__node {
+  cursor: pointer;
+}
+.react-flow__node.dragging {
+  cursor: grabbing;
+}
+.react-flow__handle {
+  width: 7px;
+  height: 7px;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--link-line);
+  opacity: 0;
+}
+.react-flow__node:hover .react-flow__handle,
+.react-flow__handle.connectingfrom {
+  opacity: 1;
+}
+.react-flow__background {
+  background: var(--bg);
+}
+.react-flow__attribution {
+  background: transparent;
+  font-size: 10px;
+  margin: 0 6px 2px 0;
+}
+.react-flow__attribution a {
+  color: var(--text-faint);
+}
+
+/* edge styles by link kind */
+.edge-path {
+  fill: none;
+  stroke: var(--link-line);
+  stroke-width: 1.75;
+}
+.edge-path.vpn_tunnel {
+  stroke-dasharray: 7 5;
+}
+.edge-path.dns_dependency {
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+.edge-path.logical {
+  stroke: var(--link-line-muted);
+  stroke-width: 1.25;
+}
+.edge-path.down {
+  stroke: var(--status-down);
+}
+.edge-path.selected {
+  stroke: var(--accent);
+}
+.edge-casing {
+  fill: none;
+  stroke: var(--link-line);
+  stroke-width: 5.5;
+}
+.edge-casing.selected {
+  stroke: var(--accent);
+}
+.edge-core {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 2.5;
+}
+
+/* node card shapes: category = shape + border (CONVENTIONS.md §5.4) */
+.node-card {
+  background: var(--node-bg);
+  border: 1.5px solid var(--node-border);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color 120ms var(--ease),
+    box-shadow 120ms var(--ease);
+}
+.node-card:hover {
+  border-color: var(--node-border-hover);
+  box-shadow: var(--shadow-sm);
+}
+.node-card.is-down {
+  border-color: var(--status-down);
+}
+.node-card.is-selected {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent-subtle),
+    var(--shadow-sm);
+}
+.node-card.shape-rounded {
+  border-radius: var(--radius-md);
+}
+.node-card.shape-square {
+  border-radius: 2px;
+}
+.node-card.border-double {
+  border-style: double;
+  border-width: 4px;
+}
+.node-card.border-dashed {
+  border-style: dashed;
+}
+/* outline-drawn shapes (cloud, hexagon): the SVG frame draws border and fill */
+.node-card.shape-outline {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.shape-frame .frame-fill {
+  fill: var(--node-bg);
+}
+.shape-frame .frame-stroke {
+  fill: none;
+  stroke: var(--node-border);
+  stroke-width: 1.5;
+}
+.node-card:hover .shape-frame .frame-stroke {
+  stroke: var(--node-border-hover);
+}
+.node-card.is-down .shape-frame .frame-stroke {
+  stroke: var(--status-down);
+}
+.node-card.is-selected .shape-frame .frame-stroke {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.shape-frame {
+  filter: drop-shadow(0 1px 1.5px oklch(0.2 0.03 265 / 0.08));
+}
+/* cloud: union outline trick (thick stroke underneath, fill on top) */
+.shape-frame .frame-outline > * {
+  fill: var(--node-border);
+  stroke: var(--node-border);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.node-card:hover .shape-frame .frame-outline > * {
+  fill: var(--node-border-hover);
+  stroke: var(--node-border-hover);
+}
+.node-card.is-down .shape-frame .frame-outline > * {
+  fill: var(--status-down);
+  stroke: var(--status-down);
+}
+.node-card.is-selected .shape-frame .frame-outline > * {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+/* hexagon arrow tips */
+.shape-frame .frame-arrow {
+  fill: none;
+  stroke: var(--node-border-hover);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* area colors */
+.area-yellow { --area: var(--area-yellow); }
+.area-teal { --area: var(--area-teal); }
+.area-violet { --area: var(--area-violet); }
+.area-rose { --area: var(--area-rose); }
+.area-blue { --area: var(--area-blue); }
+.area-green { --area: var(--area-green); }
+.area-gray { --area: var(--area-gray); }
+.area-box {
+  background: color-mix(in oklch, var(--area) calc(var(--area-fill-alpha) * 100%), transparent);
+  border: 1.5px solid color-mix(in oklch, var(--area) calc(var(--area-border-alpha) * 100%), transparent);
+}
+.area-box.is-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+.area-card {
+  box-shadow:
+    5px 5px 0 -1.5px var(--node-bg),
+    5px 5px 0 0 var(--node-border),
+    var(--shadow-sm);
+}
+
+@keyframes detail-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ───── signed-out screens: the canvas dot grid, fading out at the edges ───── */
+.auth-backdrop {
+  background-image: radial-gradient(var(--canvas-dot, var(--border-strong)) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--bg);
+}
+
+/* ───── canvas editing ───── */
+.react-flow .resize-line {
+  border-color: var(--accent);
+}
+.react-flow .resize-handle {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
+  background: var(--surface);
+}
+/* notes and text grow with their content: only the side handles make sense */
+.react-flow .resize-handle.width-only.top,
+.react-flow .resize-handle.width-only.bottom {
+  display: none;
+}
+.draw-preview {
+  fill: color-mix(in oklch, var(--accent) 8%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.draw-preview-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* link tool: cards become targets; the picked first node is highlighted */
+.react-flow.tool-link .react-flow__node-inv {
+  cursor: crosshair;
+}
+.react-flow.tool-link .react-flow__node-inv:hover .node-card {
+  border-color: var(--accent);
+}
+.react-flow .react-flow__node-inv.is-link-source .node-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+/* hexagon and cloud draw their own border (SVG): highlight that outline, never a square box around it */
+.react-flow .react-flow__node-inv.is-link-source .node-card.shape-outline {
+  box-shadow: none;
+}
+.react-flow .react-flow__node-inv.is-link-source .shape-frame {
+  filter: drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 4px var(--ring));
+}
+.react-flow .react-flow__node-inv.is-link-source .shape-frame .frame-stroke,
+.react-flow.tool-link .react-flow__node-inv:hover .shape-frame .frame-stroke {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.react-flow .react-flow__node-inv.is-link-source .shape-frame .frame-outline > *,
+.react-flow.tool-link .react-flow__node-inv:hover .shape-frame .frame-outline > * {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ───── select vs pan (DRA-52) ───── */
+/* Select: arrow cursor; nodes and areas can be clicked, dragged and edited; drag on empty canvas = selection box */
+.react-flow.tool-select .react-flow__pane {
+  cursor: default;
+}
+/* Pan (H or hold Space): a hand everywhere, any drag moves the view, nothing can be picked or changed */
+.react-flow.tool-pan .react-flow__pane {
+  cursor: grab;
+}
+.react-flow.tool-pan .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+.react-flow.tool-pan .react-flow__node,
+.react-flow.tool-pan .react-flow__edge,
+.react-flow.tool-pan .react-flow__edgelabel-renderer {
+  pointer-events: none !important;
+}
+.react-flow .react-flow__selection {
+  border: 1px solid var(--accent);
+  background: color-mix(in oklch, var(--accent) 8%, transparent);
+}
+.react-flow .react-flow__nodesselection-rect {
+  border: 1px dashed var(--accent);
+  background: transparent;
+}
+
+/* a canvas you switch to fades in once it has been fitted to the screen (DRA-59: no jump, no blank flash) */
+.react-flow.is-fitting .react-flow__viewport {
+  opacity: 0;
+}
+.react-flow.is-fitted .react-flow__viewport {
+  animation: fade-in 140ms var(--ease);
+}
+
+/* ───── scrollbars (DRA-71): thin, in the theme's colors, only as strong as needed ───── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--text-faint) 45%, transparent) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--text-faint) 45%, transparent) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--text-faint) 75%, transparent) padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

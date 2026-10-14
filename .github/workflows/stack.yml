@@ -1,0 +1,47 @@
+name: Full stack smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main, alpha]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: netopology-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Generate disposable configuration
+        run: |
+          python3 - <<'PY'
+          import base64, os, secrets
+          from pathlib import Path
+          values = {
+              "NETOPOLOGY_DB_SUPERUSER_PASSWORD": secrets.token_hex(24),
+              "NETOPOLOGY_DB_OWNER_PASSWORD": secrets.token_hex(24),
+              "NETOPOLOGY_DB_APP_PASSWORD": secrets.token_hex(24),
+              "NETOPOLOGY_SECRET_KEY": base64.b64encode(os.urandom(32)).decode(),
+              "NETOPOLOGY_HTTP_PORT": "3100",
+              "NETOPOLOGY_PUBLIC_URL": "http://localhost:3100",
+              "NETOPOLOGY_COOKIE_SECURE": "false",
+          }
+          Path(".env.ci").write_text("\n".join(f"{key}={value}" for key, value in values.items()) + "\n")
+          PY
+      - name: Build and start from an empty database
+        run: docker compose --env-file .env.ci up -d --build --wait --wait-timeout 180
+      - name: Verify frontend, setup, editing and live stream
+        run: python3 scripts/smoke-stack.py http://localhost:3100
+      - name: Service diagnostics on failure
+        if: failure()
+        run: docker compose --env-file .env.ci ps -a
+      - name: Remove disposable stack
+        if: always()
+        run: docker compose --env-file .env.ci down --volumes --remove-orphans

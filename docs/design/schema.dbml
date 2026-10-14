@@ -1,6 +1,6 @@
 // Netopology database schema (design view)
 // Visualize: paste into https://dbdiagram.io, or publish with dbdocs (https://dbdocs.io).
-// Source of truth for the real database is apps/core/db/migrations/*.sql.
+// Source of truth for the real database is backend/db/migrations/*.sql.
 // This file must be kept in sync with the migrations (later: regenerate it with `db2dbml`).
 //
 // Conventions: snake_case, plural tables, uuid v7 ids, timestamptz, text + CHECK instead of PG enums.

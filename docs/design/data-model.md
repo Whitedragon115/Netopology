@@ -7,8 +7,8 @@
 | File | What it is |
 |------|-----------|
 | [`schema.dbml`](schema.dbml) | **Visual design** of the schema. Paste into [dbdiagram.io](https://dbdiagram.io) for an interactive ER diagram, or publish with [dbdocs.io](https://dbdocs.io). VS Code has DBML preview extensions too. |
-| [`apps/core/db/migrations/`](../../apps/core/db/migrations/) | **Source of truth.** goose SQL migrations that create the real database (triggers, checks, RLS). |
-| [`apps/core/db/tests/scenarios.sql`](../../apps/core/db/tests/scenarios.sql) | Executable checks for the rules below. Run as the non-superuser app role. |
+| [`backend/db/migrations/`](../../backend/db/migrations/) | **Source of truth.** goose SQL migrations that create the real database (triggers, checks, RLS). |
+| [`backend/db/tests/scenarios.sql`](../../backend/db/tests/scenarios.sql) | Executable checks for the rules below. Run as the non-superuser app role. |
 
 Rule: **change the migration first, then update `schema.dbml`.** Later (phase B) CI will regenerate the DBML from a migrated database (`db2dbml` from the DBML CLI) so the diagram can never drift.
 

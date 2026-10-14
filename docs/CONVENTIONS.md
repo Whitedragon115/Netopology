@@ -2,7 +2,7 @@
 
 > Status: **Draft v0.2**. 🟡 = proposal awaiting confirmation. Once confirmed, this file is the rulebook; a PR that breaks a rule must either fix the code or change this file.
 
-**Confirmed so far:** default theme **dark** (light supported); accent **teal/cyan**; look **dense and technical** (Grafana/Portainer-like); **glossary approved** (Canvas, Link, Area, Node, Workflow...). The stack, folder layout and code rules below are still 🟡 until you say otherwise.
+**Confirmed so far:** **Dify-like look**: light default (dark available), soft gray canvas, white floating panels, **blue accent**, gray card nodes whose category is shown by shape and border; **floating layout** (no fixed header or footer); **glossary approved** (Canvas, Link, Area, Node, Workflow...). The stack, folder layout and code rules below are still 🟡 until you say otherwise. (An earlier dark/teal/dense direction was replaced after review.)
 
 ## 1. Glossary (one word per concept)
 
@@ -28,47 +28,53 @@ Most confusion comes from two names for one thing. **Use these words in code, DB
 
 User-facing text may say "map" casually in marketing, but code says `canvas`.
 
-## 2. Repository layout (monorepo)
+## 2. Repository layout
+
+The **frontend lives at the repository root** (a Next.js app). The **backend is a separate Git repository**, included as a submodule.
 
 ```
-apps/
-  web/            Next.js UI (own container)
-  core/           Go module: `api` and `worker` modes, one binary
-  sandbox/        Node + Python plugin hosts (own container)
-packages/
-  schema/         JSON Schemas: plugin manifest, RPC messages, export format  <- source of truth
-  api-client/     TS client generated from the Go OpenAPI spec (never hand-edited)
-  sdk-ts/         @netopology/plugin-sdk
-  sdk-py/         netopology-sdk
-plugins/          first-party plugins
-deploy/           compose files, nginx.conf, .env.example
-docs/             this file, ADRs (docs/adr/), plugin authoring guide
+app/              Next.js App Router routes (thin: compose features)
+components/ui/    primitives (Radix-based, restyled with tokens)
+components/       app-wide shared components (StatusIcon, NodeIcon, ...)
+features/         feature folders: canvas/, inventory/, members/, monitor/, command/, auth/, share/
+lib/              api client (generated types), query client, utils
+mocks/            MSW mock API (seed data) used until the backend is ready
+styles/           tokens.css (design tokens), globals
+scripts/          dev scripts (check-contrast.py, ...)
+public/           static files (incl. MSW worker)
+backend/          git submodule: Go api + worker + db migrations + the API contract (Netopology-Backend repo)
+deploy/           nginx gateway config for the full stack
+docs/             IDEA, CONVENTIONS, design/, api/index.html (Scalar viewer for the contract)
+compose.yaml      the full stack: gateway, web, api, worker, db
 ```
 
-- **TypeScript side:** pnpm workspaces. **Go side:** its own `go.mod` in `apps/core`.
-- **One entry point for commands:** a root `Taskfile.yml` (`task dev`, `task test`, `task lint`, `task gen`, `task up`). No one has to remember per-language commands.
-- **Generated code is committed or reproducible by `task gen` and never edited by hand** (`api-client`, sqlc output).
+- Package manager: **pnpm**. Commands: `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm gen:api`.
+- `lib/api/schema.d.ts` is **generated** from `backend/api/contract.yaml` (`pnpm gen:api`) and never edited by hand.
+- The backend repo owns the API contract (`backend/api/contract.yaml`) and the database migrations (`backend/db/`).
 
 ## 3. Backend (Go) rules
 
 ### 3.1 Structure: feature packages, strict layers
+
+The full, current layout and the reasons behind it are in `backend/docs/ARCHITECTURE.md`. In short:
 ```
-apps/core/
-  cmd/netopology/        main(): `api` | `worker` | `migrate` | `export`
+backend/
+  cmd/netopology/        main(): `api` | `worker` | `migrate` | `openapi` (`export` in C6)
+  api/contract.yaml      the API contract (hand-written; the Go code must match it)
   internal/
-    workspace/ inventory/ canvas/ workflow/ plugin/ member/ auth/ audit/ share/
-      handler.go         HTTP layer (Huma): parse, call service, map errors
+    setup/ auth/ account/ workspace/ member/ inventory/ canvas/ share/ events/ audit/
+      handler.go         HTTP layer (Huma): declare the operation, call one service method
       service.go         business rules + AUTHORIZATION
-      store.go           wraps sqlc queries; no business logic
-      model.go           domain types
-    platform/            db, config, logging, crypto, queue, sandbox client
+      model.go           wire types, named like the contract schemas
+    authz/               permission keys, roles, Actor
+    platform/            pg (+ sqlc dbgen), config, logging, crypto, httpx, events, auditlog, ...
   db/
     migrations/          goose, numbered, never edit an applied one
-    queries/             .sql files for sqlc
+    queries/             .sql files for sqlc (the generated code is the store layer)
 ```
 
 **Layer rules (reviewers enforce these):**
-1. `handler → service → store`. A handler never touches the DB. A store never calls a service.
+1. `handler → service → queries`. A handler never touches the DB (lint-enforced). Queries never decide access.
 2. **Authorization lives in the service layer**, never in the UI or handler only. Every service method receives an `Actor` (user + role in workspace) and checks it first.
 3. **Every query is scoped by `workspace_id`.** No query on workspace-owned tables may omit it; Postgres RLS is the backstop, not the plan.
 4. **Redaction (sensitive info) is applied in the service layer** based on the actor's role. Never return sensitive fields and rely on the UI to hide them.
@@ -76,19 +82,19 @@ apps/core/
 
 ### 3.2 Style
 - `context.Context` is the first parameter of anything doing I/O.
-- Errors: wrap with `fmt.Errorf("...: %w", err)`; define sentinel/typed errors in the feature (`ErrNotFound`, `ErrForbidden`); map to HTTP status **only in handlers**.
+- Errors: wrap with `fmt.Errorf("...: %w", err)`; expected failures are `*apperr.Error` (kind + stable code) returned by services; the HTTP status is chosen in one place (`platform/httpx`), never in services.
 - Logging: `log/slog`, structured, with `workspace_id` and `request_id`. **Never log credentials, tokens, or request bodies of credential endpoints.**
 - Config: environment variables only, parsed once at start into a typed struct. No globals.
-- Tests: table-driven unit tests; integration tests against a real Postgres via testcontainers (no mocking the DB).
+- Tests: table-driven unit tests; integration tests through the real HTTP stack against a real Postgres (one throwaway database per test, cloned from a migrated template; no mocking the DB).
 - Lint: `golangci-lint` (config committed), `gofmt`/`goimports`.
 
 ### 3.3 API conventions
 - REST under `/api/v1`, workspace-scoped: `/api/v1/workspaces/{wsId}/canvases/{id}`.
 - JSON field names **camelCase**. IDs are **UUIDv7** strings.
-- Errors: **RFC 9457 problem+json** (Huma's default) with a stable `code` string (`inventory.node_not_found`) the UI can switch on.
+- Errors: **RFC 9457 problem+json** with a stable `code` string (`inventory.used_elsewhere`) the UI can switch on.
 - Lists: cursor pagination (`?cursor=&limit=`). Never unbounded lists.
 - Live updates (health, run logs): **SSE** at `/api/v1/workspaces/{wsId}/events`.
-- OpenAPI is generated from Go; the TS client is generated from OpenAPI. **Changing an endpoint = change Go, run `task gen`, fix TS compile errors.**
+- **Contract first.** `backend/api/contract.yaml` is the source of truth; the Go code registers operations that must match it (a contract test checks paths, ids, permissions, statuses, parameters and schema shapes), and Huma's generated spec is written to `backend/api/openapi.gen.yaml`. The TS client is generated from the contract (`pnpm gen:api`). **Changing an endpoint = change the contract first (reviewed), then Go, then `pnpm gen:api` and fix TS errors.**
 
 ### 3.4 Database conventions
 - `snake_case`, plural table names (`nodes`, `canvas_placements`), `id uuid` PK, `created_at`/`updated_at timestamptz`.
@@ -103,12 +109,12 @@ Next.js App Router, **TypeScript `strict`**, **Tailwind CSS**, **shadcn/ui** (Ra
 
 ### 4.2 Structure: feature folders
 ```
-apps/web/src/
+(repo root)
   app/                    routes only: thin pages composing features
   features/
     canvas/ inventory/ workflows/ plugins/ members/ workspace/ ...
       components/  hooks/  api/  model/    (api = TanStack Query hooks over the generated client)
-  components/ui/          shadcn primitives (Button, Dialog, ...) restyled by tokens
+  components/ui/          Radix-based primitives (Button, Dialog, ...) restyled by tokens
   components/shared/      app-wide composites (StatusBadge, NodeIcon, ConfirmDialog)
   lib/                    utils, formatters, a11y helpers
   styles/                 tokens.css, globals.css
@@ -128,79 +134,85 @@ apps/web/src/
 ## 5. UI & visual design system
 
 ### 5.1 Principles
-1. **Status first.** The product is about "is it up, and where does it break?". Health state must be readable at a glance from the canvas.
-2. **Calm, dense, technical.** An operations tool, not a marketing site. Compact spacing, minimal chrome, content (the map) is the hero.
-3. **Never color alone.** Every status has a color **and** an icon/shape, so it works for color-blind users and in screenshots.
-4. **Consistent over clever.** Reuse a few components everywhere.
-5. Keyboard-accessible and screen-reader-labelled controls (Radix gives most of this).
+1. **Status first.** The product is about "is it up, and where does it break?". Health must be readable at a glance on the canvas and in the Monitor panel.
+2. **Calm and light (Dify-like).** Soft gray canvas, white floating panels, generous rounding, subtle shadows. The map is the hero; chrome floats above it.
+3. **Never color alone.** Every status has a color **and** an icon.
+4. **Nodes are neutral.** All nodes are the same gray card. Category is shown by **shape and border**, health by an icon (and a red border when down). Color is reserved for status, the accent, and area groups.
+5. **Text never fights wires.** All node text lives inside the card; wires attach to card edges.
+6. **Consistent over clever.** Few components, reused everywhere. Keyboard-accessible (Radix).
 
-### 5.2 Tokens (the only way to use color) 🟡
-**Rule: components never use raw hex/Tailwind palette colors (`bg-red-500`). They use semantic tokens** defined once in `styles/tokens.css` as CSS variables, with light and dark themes. Changing the brand later = editing one file.
+### 5.2 Tokens (the only way to use color)
+**Rule: components never use raw colors (no hex, no `bg-red-500`). They use the semantic tokens** in [`styles/tokens.css`](../styles/tokens.css). Changing the look = editing that one file. `scripts/check-contrast.py` must pass (WCAG AA for key pairs, both themes).
 
 ```
-Surfaces :  --bg   --surface   --surface-raised   --overlay
-Lines    :  --border   --border-strong   --ring
-Text     :  --text   --text-muted   --text-faint   --text-on-accent
-Brand    :  --accent   --accent-hover   --accent-subtle
-Status   :  --status-healthy  --status-degraded  --status-down  --status-unknown   (+ *-subtle backgrounds)
-Feedback :  --success  --warning  --danger  --info
-Category :  --cat-network  --cat-compute  --cat-service  --cat-storage  --cat-external  --cat-generic
+Surfaces :  --bg (canvas)  --surface (panels, cards)  --surface-raised (hover)  --surface-sunken (inputs)  --overlay
+Lines    :  --border  --border-strong  --grid-dot  --ring
+Text     :  --text  --text-muted  --text-faint  --text-on-accent
+Brand    :  --accent  --accent-hover  --accent-subtle          (blue)
+Status   :  --status-{healthy,degraded,down,unknown}  (+ -subtle)
+Nodes    :  --node-bg  --node-border  --node-border-hover  --node-icon-bg  --node-icon
+Links    :  --link-line  --link-line-muted
+Areas    :  --area-{yellow,teal,violet,rose,blue,green,gray}  --area-fill-alpha  --area-border-alpha
+Notes    :  --note-{default,yellow,teal,violet,rose}  --note-text
+Elevation:  --shadow-{xs,sm,lg,xl}
+Layout   :  --float-gap  --left-panel-width  --detail-panel-width
 ```
+- **Theme:** light is the default; dark is available; "system" is resolved in JS.
+- **Status mapping** (color + icon): healthy = green check circle; degraded = amber triangle; down = red x circle (+ red card border); unknown = gray dashed circle.
 
-- **Theme:** dark and light both supported from day one (token-based), plus "system". **Default: dark.**
-- **Starting values** (OKLCH, to be tuned on screen; the rule is the token names, not these numbers):
-
-```css
-:root[data-theme="dark"] {
-  --bg:               oklch(0.17 0.01 240);   /* near-black, slightly blue */
-  --surface:          oklch(0.21 0.012 240);
-  --surface-raised:   oklch(0.25 0.014 240);
-  --border:           oklch(0.32 0.014 240);
-  --text:             oklch(0.95 0.005 240);
-  --text-muted:       oklch(0.72 0.01 240);
-  --accent:           oklch(0.75 0.12 195);   /* teal / cyan */
-  --accent-hover:     oklch(0.80 0.12 195);
-  --text-on-accent:   oklch(0.18 0.02 195);
-  --status-healthy:   oklch(0.76 0.17 150);   /* green */
-  --status-degraded:  oklch(0.80 0.15 80);    /* amber */
-  --status-down:      oklch(0.68 0.21 25);    /* red */
-  --status-unknown:   oklch(0.62 0.01 240);   /* gray */
-}
-```
-  The accent (hue 195) sits far from green (150), amber (80) and red (25), so brand color is never confused with a status.
-- **Status mapping** (color + icon): healthy = green + check circle; degraded = amber + alert triangle; down = red + x circle (pulsing ring on canvas); unknown = gray + dashed circle.
-- **Category colors** are low-saturation tints used for node icon backgrounds so shape + tint identify the category; they must stay clearly distinct from status colors (status is never conveyed by a category hue).
-- Palette generated in OKLCH for even lightness; text/background pairs must meet WCAG AA contrast (checked in CI).
-
-### 5.3 Typography, spacing, shape 🟡
-- Fonts: **Inter** (UI), **JetBrains Mono** (IPs, hostnames, ports, code, logs). Anything machine-like is monospace.
-- Scale: 12 / 13 / 14 (base) / 16 / 20 / 24 px. 4 px spacing grid (Tailwind default).
-- Radius: small (6 px) for controls, 10 px for cards/panels. Shadows are rare; prefer borders.
-- Icons: **Lucide** for UI; a custom SVG set for node shapes.
-- Motion: short (120-200 ms), purposeful, respects `prefers-reduced-motion`.
+### 5.3 Typography, spacing, shape
+- Fonts: **Inter** (UI), **JetBrains Mono** (IPs, slugs, ports, code, logs).
+- Scale: 11 / 12 / 13 / 14 (base) / 16 / 18 / 24 px. 4 px spacing grid.
+- Radius: 8 px controls, 12 px cards, 16 px floating panels. Shadows: xs for cards, lg for floating panels, xl for dialogs.
+- Icons: **Lucide**. Motion: 120-200 ms, respects `prefers-reduced-motion`.
 
 ### 5.4 Canvas visual language
-- **Node shape by category** (also an icon in the center): network = rounded hexagon/circle with arrows motif, compute = rounded square, service = pill/rounded rect, storage = cylinder, external = cloud, generic = rectangle. A plugin may choose an icon, never custom render code.
-- **Link style by kind:** physical = solid; VPN tunnel = dashed; proxy route = solid with arrowhead; DNS dependency = dotted with arrowhead; storage mount = double line; logical = thin gray. Link color follows health (healthy neutral, down red) when measurable.
-- **Area:** translucent fill + labeled border, nestable; label shows rolled-up health.
-- **States:** hover (outline), selected (accent ring), locked (small lock badge), protected (shield badge), sensitive-hidden (blurred/masked text with a "hidden" chip).
-- Notes: yellow-tinted card is **not** reserved; note color comes from tokens (`--note-*`), 4 preset tints.
+- **Node card** (all the same gray), sized to its text:
+  ```
+  ┌─────────────────────────────────┐
+  │ [icon]  Title                 ● │   ● = health icon
+  │         type                    │
+  │─────────────────────────────────│
+  │ description                     │
+  └─────────────────────────────────┘
+  ```
+- **Category = shape + border:**
 
-### 5.5 Layout
+  | Category | Shape | Border |
+  |----------|-------|--------|
+  | network | elongated hexagon (arrow tips) | solid |
+  | compute | square box | double |
+  | service | rounded box | solid |
+  | storage | rounded box | double |
+  | external | cloud | solid |
+  | generic | rounded box | dashed |
+
+- **Wires** are smooth curves from the side of one card to the facing side of the other, with small port dots; arrows for directed kinds. Style by kind: physical solid, VPN dashed, proxy route solid + arrow, DNS dependency dotted + arrow, storage mount double line, logical thin light. A down link turns red. Optional label as a small pill at the middle.
+- **Area, expanded:** translucent colored box with a header (color dot, name, CIDR, health chip, collapse button). Its nodes sit inside.
+- **Area, collapsed:** a card like a node with a colored side stripe and a stacked edge (= "more inside"); "double-click to enter".
+- **Outside markers** (inside an area canvas): dashed pill naming the node outside the area; click to go back.
+- **States:** hover (darker border + shadow), selected (accent border + soft ring), down (red border), sensitive hidden ("Hidden" chip; guests: omitted).
+
+### 5.5 Layout (floating)
 ```
-+--------+-----------------------------------------+-----------+
-| Rail   |  Canvas tabs (this workspace's canvases) | Side panel|
-| (work- |------------------------------------------|(user-     |
-| spaces,|                                          | custom,   |
-| nav)   |              CANVAS                      | tabs)     |
-|        |                                          |           |
-+--------+------------------------------------------+-----------+
-| status bar: workspace health, running workflows, connection    |
-+----------------------------------------------------------------+
+┌───────────────┐                                        ┌──────────────────┐ ┌────────┐
+│ Home lab ▾  ▣ │                                        │ ☰  👥  ⚡  🧩  ⚙ │ │ Share  │ (AL)
+│ ▾ CANVASES    │                                        └──────────────────┘ └────────┘
+│   Physical    │                                                ┌──────────────────────┐
+│     Remote… │             full-screen CANVAS                 │  Detail panel        │
+│   Services    │                                                │  (only when          │
+│ ▾ MONITOR     │                                                │   something is       │
+│  1 down 1 deg │                                                │   selected)          │
+│  Game VM 2 …  │                                                │                      │
+│ ● Live        │      ┌ tools │ undo redo │ legend │ − 100% + ⤢ ┐                      │
+└───────────────┘      └──────────────────────────────────────────┘└──────────────────────┘
 ```
-- Left rail: workspace switcher, Canvases, Inventory, Workflows, Plugins, Members, Settings.
-- Right side panel: user-configurable tabs (node details, notes, panels, iframes). Resizable, collapsible.
-- Command palette (`Ctrl/Cmd+K`) for everything.
+- **No fixed header or footer.** Everything floats over a full-screen canvas.
+- **Left panel** (foldable sections, whole panel can collapse to a small pill): workspace switcher, **Canvases** (with each area's inner canvas nested under the canvas that shows it), **Monitor** (health counts + "needs attention" list, click to jump; replaces the old status bar), live/saved status.
+- **Top right:** floating icon group (Inventory, Members, Workflows, Plugins, Settings), Share button, account avatar. **No search box**: `Ctrl/Cmd+K` opens the command palette (nodes, canvases, actions).
+- **Bottom center:** floating toolbar (tools, undo/redo, legend & link visibility, zoom).
+- **Right:** detail panel floats in when something is selected; closes with × or Esc.
+- **Inventory and Members** open as large floating sheets over the canvas, not as separate pages.
 
 ## 6. Workflow & quality rules
 
@@ -218,7 +230,7 @@ Category :  --cat-network  --cat-compute  --cat-service  --cat-storage  --cat-ex
 3. Every workspace-owned query is scoped by `workspace_id`.
 4. UI permission checks are cosmetic; the server decides.
 5. Colors only via semantic tokens, never raw palette values.
-6. Status = color + icon, never color alone.
+6. Status = color + icon, never color alone; nodes stay gray (shape and border show category).
 7. No fetch in components; use feature `api/` hooks; server state stays in TanStack Query.
 8. Generated code is never hand-edited; change the source and run `task gen`.
 9. Never log or return credentials; credentials are write-only.

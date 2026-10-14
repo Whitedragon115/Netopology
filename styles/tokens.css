@@ -1,0 +1,181 @@
+/*
+ * Netopology design tokens: the ONLY place colors are defined (CONVENTIONS.md §5.2).
+ * Components use these variables, never raw colors.
+ * Look: calm and light (Dify-like): soft gray canvas, white floating panels, blue accent,
+ * gray nodes. Light is the default theme; dark is available.
+ * Theme switch: <html data-theme="light|dark">. The app resolves "system" in JS and always sets it.
+ * Values are OKLCH so lightness stays even across hues.
+ */
+
+:root {
+  /* ── type ── */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+
+  /* ── shape ── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* ── motion ── */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+
+  /* ── floating layout ── */
+  --float-gap: 12px; /* distance of floating panels from the screen edge */
+  --left-panel-width: 248px;
+  --detail-panel-width: 340px;
+}
+
+/* ───────────── light (default) ───────────── */
+:root,
+:root[data-theme="light"] {
+  --bg: oklch(0.965 0.006 255); /* the canvas */
+  --surface: oklch(1 0 0); /* floating panels, cards */
+  --surface-raised: oklch(0.982 0.003 255); /* hover rows */
+  --surface-sunken: oklch(0.975 0.004 255); /* inputs */
+  --overlay: oklch(0.2 0.03 265 / 0.28);
+
+  --border: oklch(0.935 0.006 260);
+  --border-strong: oklch(0.87 0.012 260);
+  --grid-dot: oklch(0.84 0.012 260);
+  --ring: oklch(0.55 0.22 263);
+
+  --text: oklch(0.21 0.03 265);
+  --text-muted: oklch(0.45 0.03 257);
+  --text-faint: oklch(0.55 0.025 257);
+  --text-on-accent: oklch(1 0 0);
+
+  /* brand: blue */
+  --accent: oklch(0.55 0.22 263);
+  --accent-hover: oklch(0.5 0.23 263);
+  --accent-subtle: oklch(0.55 0.22 263 / 0.09);
+
+  /* status: always paired with an icon */
+  --status-healthy: oklch(0.6 0.14 155);
+  --status-degraded: oklch(0.64 0.16 55);
+  --status-down: oklch(0.58 0.21 27);
+  --status-unknown: oklch(0.6 0.015 257);
+  --status-healthy-subtle: oklch(0.6 0.14 155 / 0.1);
+  --status-degraded-subtle: oklch(0.64 0.16 55 / 0.11);
+  --status-down-subtle: oklch(0.58 0.21 27 / 0.09);
+  --status-unknown-subtle: oklch(0.6 0.015 257 / 0.1);
+
+  --success: var(--status-healthy);
+  --warning: var(--status-degraded);
+  --danger: var(--status-down);
+  --danger-subtle: var(--status-down-subtle);
+  --info: var(--accent);
+
+  /* nodes: one neutral gray look; category is shown by SHAPE and BORDER, never by color */
+  --node-bg: oklch(1 0 0);
+  --node-border: oklch(0.86 0.01 260);
+  --node-border-hover: oklch(0.76 0.014 260);
+  --node-icon-bg: oklch(0.955 0.006 260);
+  --node-icon: oklch(0.42 0.025 260);
+
+  /* links */
+  --link-line: oklch(0.7 0.014 260);
+  --link-line-muted: oklch(0.82 0.01 260);
+
+  /* area boxes (user-chosen group color) */
+  --area-yellow: oklch(0.6 0.13 80);
+  --area-teal: oklch(0.58 0.1 190);
+  --area-violet: oklch(0.55 0.15 295);
+  --area-rose: oklch(0.58 0.17 10);
+  --area-blue: oklch(0.55 0.16 255);
+  --area-green: oklch(0.57 0.13 150);
+  --area-gray: oklch(0.55 0.015 257);
+  --area-fill-alpha: 0.06;
+  --area-border-alpha: 0.4;
+
+  /* sticky notes */
+  --note-default: oklch(0.975 0.004 255);
+  --note-yellow: oklch(0.975 0.06 100);
+  --note-teal: oklch(0.97 0.03 190);
+  --note-violet: oklch(0.97 0.03 295);
+  --note-rose: oklch(0.97 0.03 10);
+  --note-text: oklch(0.3 0.03 265);
+
+  --shadow-xs: 0 1px 2px oklch(0.2 0.03 265 / 0.05);
+  --shadow-sm: 0 1px 3px oklch(0.2 0.03 265 / 0.09), 0 1px 2px oklch(0.2 0.03 265 / 0.05);
+  --shadow-lg: 0 12px 16px -4px oklch(0.2 0.03 265 / 0.08), 0 4px 6px -2px oklch(0.2 0.03 265 / 0.03);
+  --shadow-xl: 0 20px 24px -4px oklch(0.2 0.03 265 / 0.1), 0 8px 8px -4px oklch(0.2 0.03 265 / 0.04);
+
+  color-scheme: light;
+}
+
+/* ───────────── dark ───────────── */
+:root[data-theme="dark"] {
+  --bg: oklch(0.19 0.004 270);
+  --surface: oklch(0.235 0.005 270);
+  --surface-raised: oklch(0.27 0.006 270);
+  --surface-sunken: oklch(0.21 0.005 270);
+  --overlay: oklch(0.08 0.005 270 / 0.6);
+
+  --border: oklch(0.3 0.006 270);
+  --border-strong: oklch(0.38 0.008 270);
+  --grid-dot: oklch(0.32 0.006 270);
+  --ring: oklch(0.66 0.17 263);
+
+  --text: oklch(0.95 0.004 270);
+  --text-muted: oklch(0.76 0.008 270);
+  --text-faint: oklch(0.62 0.01 270);
+  --text-on-accent: oklch(1 0 0);
+
+  --accent: oklch(0.56 0.2 263);
+  --accent-hover: oklch(0.6 0.2 263);
+  --accent-subtle: oklch(0.66 0.17 263 / 0.16);
+
+  --status-healthy: oklch(0.72 0.15 155);
+  --status-degraded: oklch(0.76 0.15 65);
+  --status-down: oklch(0.68 0.19 27);
+  --status-unknown: oklch(0.66 0.01 270);
+  --status-healthy-subtle: oklch(0.72 0.15 155 / 0.14);
+  --status-degraded-subtle: oklch(0.76 0.15 65 / 0.14);
+  --status-down-subtle: oklch(0.68 0.19 27 / 0.15);
+  --status-unknown-subtle: oklch(0.66 0.01 270 / 0.14);
+
+  --node-bg: oklch(0.255 0.005 270);
+  --node-border: oklch(0.37 0.008 270);
+  --node-border-hover: oklch(0.47 0.01 270);
+  --node-icon-bg: oklch(0.31 0.006 270);
+  --node-icon: oklch(0.82 0.008 270);
+
+  --link-line: oklch(0.5 0.01 270);
+  --link-line-muted: oklch(0.38 0.008 270);
+
+  --area-yellow: oklch(0.82 0.12 90);
+  --area-teal: oklch(0.76 0.09 190);
+  --area-violet: oklch(0.74 0.12 295);
+  --area-rose: oklch(0.74 0.13 10);
+  --area-blue: oklch(0.74 0.11 255);
+  --area-green: oklch(0.76 0.12 150);
+  --area-gray: oklch(0.7 0.01 270);
+  --area-fill-alpha: 0.06;
+  --area-border-alpha: 0.4;
+
+  --note-default: oklch(0.27 0.006 270);
+  --note-yellow: oklch(0.34 0.05 95);
+  --note-teal: oklch(0.32 0.04 190);
+  --note-violet: oklch(0.32 0.05 295);
+  --note-rose: oklch(0.32 0.05 10);
+  --note-text: oklch(0.93 0.008 270);
+
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 24px -6px oklch(0 0 0 / 0.45);
+  --shadow-xl: 0 20px 32px -8px oklch(0 0 0 / 0.55);
+
+  color-scheme: dark;
+}
